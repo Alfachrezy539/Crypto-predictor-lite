@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 
+# Atur halaman dan layout
 st.set_page_config(
     page_title="CryptoPredictor Lite",
     layout="wide",
@@ -41,14 +42,19 @@ def fetch_top_coins(vs_currency="idr", per_page=50):
 # Ambil data Top 50 koin
 df = fetch_top_coins()
 
+# Tambahkan kolom Status: Bullish jika 24h% > 0, else Bearish
+df["Status"] = df["price_change_percentage_24h"].apply(
+    lambda x: "Bullish" if x and x > 0 else "Bearish"
+)
+
 # Tampilkan tabel utama
 st.subheader("Daftar Koin Teratas (Top 50)")
 st.dataframe(
-    df[["symbol", "current_price", "price_change_percentage_24h"]]
+    df[["symbol", "current_price", "price_change_percentage_24h", "Status"]]
       .rename(columns={
-          "symbol": "Koin",
-          "current_price": "Harga (IDR)",
-          "price_change_percentage_24h": "24h (%)"
+         "symbol": "Koin",
+         "current_price": "Harga (IDR)",
+         "price_change_percentage_24h": "24h (%)"
       }),
     use_container_width=True
 )
