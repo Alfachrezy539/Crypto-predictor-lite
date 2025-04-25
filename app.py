@@ -35,17 +35,20 @@ def fetch_top_coins(vs_currency="idr", per_page=50):
         "price_change_percentage": "24h"
     }
     r = requests.get(url, params=params)
-    return pd.DataFrame(r.json())
+    data = r.json()
+    return pd.DataFrame(data)
 
+# Ambil data Top 50 koin
 df = fetch_top_coins()
 
+# Tampilkan tabel utama
 st.subheader("Daftar Koin Teratas (Top 50)")
 st.dataframe(
-    df[["symbol","current_price","price_change_percentage_24h"]]
+    df[["symbol", "current_price", "price_change_percentage_24h"]]
       .rename(columns={
-         "symbol": "Koin",
-         "current_price": "Harga (IDR)",
-         "price_change_percentage_24h": "24h (%)"
+          "symbol": "Koin",
+          "current_price": "Harga (IDR)",
+          "price_change_percentage_24h": "24h (%)"
       }),
     use_container_width=True
-)Add app.py
+)
