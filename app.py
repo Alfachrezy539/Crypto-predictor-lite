@@ -52,9 +52,10 @@ st.subheader("Daftar Koin Teratas (Top 50)")
 st.dataframe(
     df[["symbol", "current_price", "price_change_percentage_24h", "Status"]]
       .rename(columns={
-         "symbol": "Koin",
-         "current_price": "Harga (IDR)",
-         "price_change_percentage_24h": "24h (%)"
+          "symbol": "Koin",
+          "current_price": "Harga (IDR)",
+          "price_change_percentage_24h": "24h (%)",
+          "Status": "Status"
       }),
     use_container_width=True
 )
