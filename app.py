@@ -1,56 +1,73 @@
 import streamlit as st
 import pandas as pd
-import requests
+import yfinance as yf
 
-# Konfigurasi halaman
-st.set_page_config(page_title="CryptoPredictor Lite", page_icon=":crystal_ball:", layout="wide", initial_sidebar_state="expanded")
+# Konfigurasi tampilan halaman
+st.set_page_config(page_title="Crypto Analyzer", page_icon=":money_with_wings:", layout="wide", initial_sidebar_state="expanded")
 
-# Judul
-st.title("CryptoPredictor Lite (Dark Mode)")
+# Title
+st.title('Crypto Analyzer :money_with_wings:')
+st.markdown("Cek sinyal Bullish/Bearish berdasarkan Moving Average sederhana.")
 
-# Fungsi ambil data
-@st.cache_data(ttl=600)
-def fetch_top_coins(per_page=50):
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        "vs_currency": "idr",
-        "order": "market_cap_desc",
-        "per_page": per_page,
-        "page": 1,
-        "sparkline": False,
-        "price_change_percentage": "24h"
-    }
-    try:
-        r = requests.get(url, params=params)
-        r.raise_for_status()
-        data = r.json()
-        df = pd.DataFrame(data)
-        return df
-    except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        return pd.DataFrame()
+# Ambil data harga
+def get_data(symbol):
+    data = yf.download(symbol, period="7d", interval="1d")
+    return data
 
-# Ambil data
-df = fetch_top_coins()
+# Hitung MA3 dan MA7
+def calculate_ma(data):
+    data['MA3'] = data['Close'].rolling(window=3).mean()
+    data['MA7'] = data['Close'].rolling(window=7).mean()
+    return data
 
-# Kalau datanya tidak kosong
-if not df.empty:
-    # Tambahkan kolom Status: Bullish jika 24h% > 0, Bearish jika <= 0
-    if "price_change_percentage_24h" in df.columns:
-        df["Status"] = df["price_change_percentage_24h"].apply(lambda x: "Bullish" if x > 0 else "Bearish")
-    
-        # Tampilkan tabel
-        st.subheader("Daftar Koin Teratas (Top 50)")
-        st.dataframe(
-            df[["symbol", "current_price", "price_change_percentage_24h", "Status"]]
-            .rename(columns={
-                "symbol": "Koin",
-                "current_price": "Harga (IDR)",
-                "price_change_percentage_24h": "24h (%)"
-            }),
-            use_container_width=True
-        )
+# Tentukan status Bullish/Bearish
+def get_status(row):
+    if pd.isna(row['MA3']) or pd.isna(row['MA7']):
+        return "WAIT"
+    elif row['MA3'] > row['MA7']:
+        return "BULLISH (BUY)"
     else:
-        st.error("Kolom perubahan harga 24 jam tidak tersedia.")
-else:
-    st.warning("Data tidak tersedia.")
+        return "BEARISH (SELL)"
+
+# Daftar koin
+coins = {
+    'BTC-USD': 'Bitcoin',
+    'ETH-USD': 'Ethereum',
+    'PEPE-USD': 'Pepe',
+    'XRP-USD': 'XRP',
+    'HBAR-USD': 'Hedera'
+}
+
+# Load data semua koin
+results = []
+for symbol, name in coins.items():
+    data = get_data(symbol)
+    if not data.empty:
+        data = calculate_ma(data)
+        latest = data.iloc[-1]
+        status = get_status(latest)
+        results.append({
+            'Coin': name,
+            'Current Price (USD)': round(latest['Close'], 6),
+            'MA 3 Hari': round(latest['MA3'], 6) if not pd.isna(latest['MA3']) else None,
+            'MA 7 Hari': round(latest['MA7'], 6) if not pd.isna(latest['MA7']) else None,
+            'Status': status
+        })
+
+# Tampilkan tabel
+df = pd.DataFrame(results)
+
+def highlight_status(val):
+    if val == "BULLISH (BUY)":
+        return 'background-color: #00FF0044; font-weight: bold;'  # hijau transparan
+    elif val == "BEARISH (SELL)":
+        return 'background-color: #FF000044; font-weight: bold;'  # merah transparan
+    elif val == "WAIT":
+        return 'background-color: #FFFF0044; font-weight: bold;'  # kuning transparan
+    else:
+        return ''
+
+st.dataframe(df.style.applymap(highlight_status, subset=['Status']), use_container_width=True)
+
+# Footer
+st.caption("Data dari Yahoo Finance | App by Your Assistant")
