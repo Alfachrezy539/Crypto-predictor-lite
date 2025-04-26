@@ -1,61 +1,56 @@
 import streamlit as st
-import requests
 import pandas as pd
+import requests
 
-# Atur halaman dan layout
-st.set_page_config(
-    page_title="CryptoPredictor Lite",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# Konfigurasi halaman
+st.set_page_config(page_title="CryptoPredictor Lite", page_icon=":crystal_ball:", layout="wide", initial_sidebar_state="expanded")
 
-# Dark mode CSS
-st.markdown(
-    """
-    <style>
-    body {background-color: #0E1117; color: #ECEDEF;}
-    .stApp {background-color: #0E1117;}
-    .css-1avcm0n, .css-1inwz65 {background-color: #1A1C23;}
-    table, th, td {color: #ECEDEF !important;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
+# Judul
 st.title("CryptoPredictor Lite (Dark Mode)")
 
-@st.cache_data(ttl=60)
-def fetch_top_coins(vs_currency="idr", per_page=50):
+# Fungsi ambil data
+@st.cache_data(ttl=600)
+def fetch_top_coins(per_page=50):
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
-        "vs_currency": vs_currency,
+        "vs_currency": "idr",
         "order": "market_cap_desc",
         "per_page": per_page,
         "page": 1,
         "sparkline": False,
         "price_change_percentage": "24h"
     }
-    r = requests.get(url, params=params)
-    data = r.json()
-    return pd.DataFrame(data)
+    try:
+        r = requests.get(url, params=params)
+        r.raise_for_status()
+        data = r.json()
+        df = pd.DataFrame(data)
+        return df
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        return pd.DataFrame()
 
-# Ambil data Top 50 koin
+# Ambil data
 df = fetch_top_coins()
 
-# Tambahkan kolom Status: Bullish jika 24h% > 0, else Bearish
-df["Status"] = df["price_change_percentage_24h"].apply(
-    lambda x: "Bullish" if x and x > 0 else "Bearish"
-)
-
-# Tampilkan tabel utama
-st.subheader("Daftar Koin Teratas (Top 50)")
-st.dataframe(
-    df[["symbol", "current_price", "price_change_percentage_24h", "Status"]]
-      .rename(columns={
-          "symbol": "Koin",
-          "current_price": "Harga (IDR)",
-          "price_change_percentage_24h": "24h (%)",
-          "Status": "Status"
-      }),
-    use_container_width=True
-)
+# Kalau datanya tidak kosong
+if not df.empty:
+    # Tambahkan kolom Status: Bullish jika 24h% > 0, Bearish jika <= 0
+    if "price_change_percentage_24h" in df.columns:
+        df["Status"] = df["price_change_percentage_24h"].apply(lambda x: "Bullish" if x > 0 else "Bearish")
+    
+        # Tampilkan tabel
+        st.subheader("Daftar Koin Teratas (Top 50)")
+        st.dataframe(
+            df[["symbol", "current_price", "price_change_percentage_24h", "Status"]]
+            .rename(columns={
+                "symbol": "Koin",
+                "current_price": "Harga (IDR)",
+                "price_change_percentage_24h": "24h (%)"
+            }),
+            use_container_width=True
+        )
+    else:
+        st.error("Kolom perubahan harga 24 jam tidak tersedia.")
+else:
+    st.warning("Data tidak tersedia.")
